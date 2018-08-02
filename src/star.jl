@@ -10,7 +10,7 @@ immutable Star <: StarAbstract
   mass::Float64
   flux::Float64                      # relevant once have multiple stars in one target
   # ld_param::LimbDarkeningParamAbstract         # TODO SCI DETAIL: add limb darkening param?
-  id::Int64                          # id for looking up properties
+  id::Int64                          # id for looking up properties in stellar catalog
 end
 #typealias SingleStar Star
 SingleStar = Star

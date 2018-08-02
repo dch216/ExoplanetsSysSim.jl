@@ -17,9 +17,9 @@ end
 # For documentation see https://github.com/jbrakensiek/CORBITS
 function prob_of_transits_approx(a::Vector{Cdouble},r_star::Cdouble,r::Vector{Cdouble}, e::Vector{Cdouble},
                                  Omega::Vector{Cdouble}, omega::Vector{Cdouble}, inc::Vector{Cdouble}, use::Vector{Cint})
-  @assert(length(a) == length(r) == length(e) == length(Omega) == length(omega) == length(inc) == length(use) )
-  @assert(length(a) >=1 )
-  num_pl = length(a)
+  @assert(length(a) == length(r) == length(e) == length(Omega) == length(omega) == length(inc) >= length(use) )
+  @assert(length(use) >=1 )
+  num_pl = length(use)
   return ccall( (:prob_of_transits_approx_arrays, LIB_CORBITS), Cdouble,
       (Ptr{Cdouble}, Cdouble, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cint}, Cint),
        a, r_star, r, e, Omega, omega, inc, use, num_pl)

@@ -30,3 +30,15 @@ A: The JLD files are repackaged stellar catalog data from the different csv vers
 
 Q: What is the difference between q1_q16_koi_cand.csv and q1_q16_koi.csv?  
 A: Danley Hsu generated q1_q16_koi_cand.csv based on q1_q16_koi.csv as well as previous KOI catalogs.  The primary difference is that he has used disposition information from previous KOI catalogs that was not reflected in the raw Q16 KOI catalog to select all KOIs with the "candidate" disposition.
+
+
+KeplerMAST_TargetProperties.csv contains a summary of key properties for Kepler Targets that are not included in the other catalogs. 
+This information was gathered from the Kepler portion of the Mikulski Archive for Space Telescopes (MAST) at archive.stsci.edu/kepler using a CasJobs query. 
+The large database of all Kepler MAST data was ingested and resummarized into several columns. A focus was on identifying whether the lightcurve of a 
+particular target ("kepid") during a particular month/quarter was obtained as part of the Exoplanet search (e.g., under the "Investigation ID" of "EX") or not. 
+We also gathered information on the availability of Short Cadence data. Thus the "LCEXst_quarters" is the "quarter string" for Quarters 1-17 with a 1 if
+this target was observed (with LC) under the EX Investigation ID and 0 if not. (Quarter 0 is not included in the quarter strings, following the stellar catalog
+convention.) "LCst_quarters" reports observations of any kind and should be identical to the quarter string from the stellar catalog. Short Cadence quarter
+strings are also provided, but here the digit 0, 1, 2, or 3 represents whether 0, 1, 2, or 3 months were obtained with Short Cadence data (both under the "EX"
+program and overall). We also summarize these quarter strings with single numbers indicating the number of quarters obtained under "EX" / overall in LC / SC 
+mode. (Note that numSCEXqtrs and numSCqtrs are floats since fractional quarters are possible.) We also elected to store the skygroup ID for each target. 

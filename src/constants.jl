@@ -5,7 +5,8 @@
  const num_channels = 84
  const num_modules = 42
  const num_quarters = 17              # QUERY:  I'm favoring leaving out quarter 0, since that was engineering data.  Agree?
- const num_cdpp_timescales = 1        # TODO SCI: Increase if incorporate CDPPs for multiple timescales, also LC/SC issue
+ const cdpp_durations = [1.5,2.,2.5,3.,3.5,4.5,5.,6.,7.5,9.,10.5,12.,12.5,15.]
+ const num_cdpp_timescales = length(cdpp_durations) # TODO SCI DETAIL: Increase if implement separate CDPPs for each quarter and/or use SC
  const mission_data_span = 1459.789   # maximum(ExoplanetsSysSim.StellarTable.df[:dataspan])
  const mission_duty_cycle = 0.8751    # median(ExoplanetsSysSim.StellarTable.df[:dutycycle])
 
@@ -44,6 +45,7 @@ const global sun_mass = 1.0
  const global earth_radius = earth_radius_eq_in_m_IAU2015 / sun_radius_in_m_IAU2015 # about 0.0091705248
  const global rsol_in_au = sun_radius_in_m_IAU2015 / AU_in_m_IAU2012  # about 0.00464913034   
  const global sec_in_day = 24*60*60
- const global grav_const = G_in_mks_IAU2015 * sec_in_day^2 * sun_mass_in_kg_IAU2010 / AU_in_m_IAU2012^3 # about 2.9591220363e-4 in AU^3/(day^2 Msol) 
+ const global grav_const = G_in_mks_IAU2015 * sec_in_day^2 * sun_mass_in_kg_IAU2010 / AU_in_m_IAU2012^3 # about 2.9591220363e-4 in AU^3/(day^2 Msol)
+ const global day_in_year = 365.25
 
 

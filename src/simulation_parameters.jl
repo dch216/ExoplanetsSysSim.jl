@@ -1,7 +1,7 @@
 ## ExoplanetsSysSim.jl
 ## (c) 2015 Eric B. Ford
 
-const global version_id_str = "0.2.2"
+const global version_id_str = "0.3.1"
 const global version_id_pair = ("version",version_id_str)
 const global julia_version_pair = ("version_julia",string(VERSION))
 
@@ -27,7 +27,7 @@ end
 ### SimParam()
 Creates a nearly empty SimParam object, with just the version id and potentially other information about the code, system, runtime, etc.
 """ ->
-SimParam() = SimParam( Dict{String,Any}([version_id_pair,julia_version_pair,("hostname",gethostname()), ("date",chomp(@compat readstring(`date`))),("time",time())]) )
+SimParam() = SimParam( Dict{String,Any}([version_id_pair,julia_version_pair,("hostname",gethostname()), ("username",ENV["USER"]), ("date",chomp(@compat readstring(`date`))),("time",time()),("ExoplanetsSysSim directory",Pkg.dir("ExoplanetsSysSim")),("ExoplanetsSysSim branch",LibGit2.headname(LibGit2.GitRepo(Pkg.dir("ExoplanetsSysSim")))),("ExoplanetsSysSim head_oid",LibGit2.head_oid(LibGit2.GitRepo(Pkg.dir("ExoplanetsSysSim"))))]) ) 
 
 @doc """
 ### add_param_fixed(sim::SimParam, key::String,val::Any)
@@ -210,12 +210,6 @@ function update_sim_param_from_vector!(param::Vector{Float64}, sim::SimParam)
         # println("# Replacing >",sim.param[sorted_keys[k]],"< with >",reshape(param[i:i+param_len-1], size(sim.param[sorted_keys[k]])),"<")
         sim.param[sorted_keys[k]] = reshape(param[i:i+param_len-1], size(sim.param[sorted_keys[k]]))
         i = i+param_len
-#=
-      elseif eltype( sorted_keys[i]) <: Real  # TODO:  Figure out when this should be true and add documentation (or fix if bug)
-        # println("# Replacing >",sorted_keys[k],"< with >",param[i:i+param_len-1],"<")
-        sim.param[sorted_keys[k]] = param[i:i+param_len-1]
-        i = i+param_len
-=#
       end
     else
       println("# Don't know what to do with empty simulation parameter: ",sorted_keys[k])

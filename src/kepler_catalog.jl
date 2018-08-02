@@ -73,20 +73,37 @@ function select_targets_one_obs(ps::PlanetarySystemAbstract)
  end
  return false
 end
+#=
+function select_targets_one_obs(ps::PlanetarySystemAbstract)
+  for pl in 1:length(ps.orbit)
+    if does_planet_transit(ps,pl)
+       return true
+    end
+  end
+  return false
+end
+=#
 
 # Remove undetected planets from physical catalog
 # TODO: OPT: Maybe create array of bools for which planets to keep, rather than splicing out non-detections?
 function generate_obs_targets(cat_phys::KeplerPhysicalCatalog, sim_param::SimParam )
   for t in 1:length(cat_phys.target)
+    kep_targ = cat_phys.target[t]
     for ps in 1:length(cat_phys.target[t].sys)
-      kep_targ = cat_phys.target[t].sys[ps]
-      for pl in length(kep_targ.orbit):-1:1    # Going in reverse since removing planets from end of list first is cheaper than starting at beginning
-        ecc::Float64 = kep_targ.orbit[pl].ecc
-	incl::Float64 = kep_targ.orbit[pl].incl
-   	a::Float64 = semimajor_axis(kep_targ,pl)
-   	Rstar::Float64 = rsol_in_au*kep_targ.star.radius
+      sys = kep_targ.sys[ps]
+      for pl in length(sys.orbit):-1:1    # Going in reverse since removing planets from end of list first is cheaper than starting at beginning
+        ecc::Float64 = sys.orbit[pl].ecc
+	incl::Float64 = sys.orbit[pl].incl
+   	a::Float64 = semimajor_axis(sys,pl)
+   	Rstar::Float64 = rsol_in_au*sys.star.radius
        
-   	if (Rstar < (a*(1-ecc)*(1+ecc))/(1+ecc*sin(kep_targ.orbit[pl].omega))*cos(incl)) || (rand() > calc_prob_detect_if_transit(cat_phys.target[t], 1, pl, sim_param))
+        # TODO WARNING: CHECK WHAT SHOULD BE DOING HERE
+   	#if (Rstar < (a*(1-ecc)*(1+ecc))/(1+ecc*sin(sys.orbit[pl].omega))*cos(incl)) || (rand() > calc_prob_detect_if_transit_central(cat_phys.target[t], ps, pl, sim_param))
+   	#if (Rstar < (a*(1-ecc)*(1+ecc))/(1+ecc*sin(sys.orbit[pl].omega))*cos(incl)) || (rand() > calc_prob_detect_if_transit_with_actual_b(cat_phys.target[t], ps, pl, sim_param))
+        does_it_transit = does_planet_transit(sys, pl)
+        pdet_if_tr = does_it_transit ? calc_prob_detect_if_transit_with_actual_b(kep_targ, ps, pl, sim_param) : 0.
+        if !does_it_transit || (rand()>pdet_if_tr)
+
     	  splice!(cat_phys.target[t].sys[ps].orbit, pl)
 	  splice!(cat_phys.target[t].sys[ps].planet, pl)
      	end
@@ -96,7 +113,10 @@ function generate_obs_targets(cat_phys::KeplerPhysicalCatalog, sim_param::SimPar
   return cat_phys
 end
 
-function simulated_read_kepler_observations(sim_param::SimParam ) # TODO SCI:  IMPORTANT:  Eventually, replace this with a function to read data from input file (see koi_table.jl)
+
+# The following function is primarily left for debugging.  
+function simulated_read_kepler_observations(sim_param::SimParam )
+   println("# WARNING: Using simulated_read_kepler_observations.")
    if haskey(sim_param,"stellar_catalog")
       star_tab_func = get_function(sim_param, "star_table_setup")
       star_tab_func(sim_param)
@@ -142,6 +162,7 @@ function read_koi_catalog(filename::String, force_reread::Bool = false)
             end
 
             #df = readtable(filename, skipstart=num_skip)
+            #df = CSV.read(filename,nullable=true, header=num_skip, rows_for_type_detect = size(tmp_koi_cat,1)-num_skip )
             df = CSV.read(filename,allowmissing=:all, header=num_skip, rows_for_type_detect = size(tmp_koi_cat,1)-num_skip )
 
             # Choose which KOIs to keep
@@ -198,7 +219,8 @@ function setup_actual_planet_candidate_catalog(df_star::DataFrame, df_koi::DataF
     
     output = KeplerObsCatalog([])
     df_obs = join(df_star, df_koi, on = :kepid)
-    df_obs = sort!(df_obs, :kepid)
+    #df_obs = sort!(df_obs, cols=(:kepid))
+    df_obs = sort!(df_obs, (:kepid))
 
     if haskey(sim_param, "koi_subset_csv")
         tot_plan -= length(df_obs[:kepoi_name])
@@ -214,7 +236,7 @@ function setup_actual_planet_candidate_catalog(df_star::DataFrame, df_koi::DataF
             end
             num_pl = plid
             target_obs = KeplerTargetObs(num_pl)
-	    target_obs.star = ExoplanetsSysSim.StarObs(df_obs[i,:radius],df_obs[i,:mass])
+	    target_obs.star = ExoplanetsSysSim.StarObs(df_obs[i,:radius],df_obs[i,:mass],0)
         end
         
         target_obs.obs[plid] = ExoplanetsSysSim.TransitPlanetObs(df_obs[i,:koi_period],df_obs[i,:koi_time0bk],df_obs[i,:koi_depth]/1.0e6,df_obs[i,:koi_duration])

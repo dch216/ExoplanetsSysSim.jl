@@ -42,8 +42,6 @@ include("target.jl")
 export KeplerTargetObs
 include("transit_observations.jl")
 export semimajor_axis
-#export  KoiTable
-#include("koi_table.jl")                       # TODO: Need to implement first
 #export setup_koi_table, koi_table, num_koi
 export KeplerPhysicalCatalog, KeplerObsCatalog
 include("kepler_catalog.jl")
@@ -52,7 +50,7 @@ export CatalogSummaryStatistics
 include("summary_statistics.jl")
 export calc_summary_stats_obs_demo, calc_summary_stats_sim_pass_one_demo, calc_summary_stats_sim_pass_two_demo
 include("abc_distance.jl")
-export dist_L1_fractional, dist_L1_abs, dist_L2_fractional, dist_L2_abs, calc_scalar_distance, combine_scalar_distances, distance_poisson_likelihood, distance_poisson_draw
+export dist_L1_fractional, dist_L1_abs, dist_L2_fractional, dist_L2_abs, calc_scalar_distance, combine_scalar_distances, distance_poisson_likelihood, distance_poisson_draw, distance_sum_of_bernoulli_draws
 export calc_distance_vector_demo
 export TestEvalModel
 include("eval_model.jl")   # Also includes macros to help write eval model using different variables for closures

@@ -52,15 +52,21 @@ function setup(filename::String; force_reread::Bool = false)
     error(string("# Failed to read stellar catalog >",filename,"< in ascii format."))
   end
 
+  #=  Hoping we can soon get rid of this mess with map below.  There's probably a more efficient way.
   has_mass = .!(ismissing.(df[:mass]) .| ismissing.(df[:mass_err1]) .| ismissing.(df[:mass_err2]))
   has_radius = .!(ismissing.(df[:radius]) .| ismissing.(df[:radius_err1]) .| ismissing.(df[:radius_err2]))
   has_dens = .!(ismissing.(df[:dens]) .| ismissing.(df[:dens_err1]) .| ismissing.(df[:dens_err2]))
+  has_cdpp = .!(ismissing.(df[:rrmscdpp04p5]) .| ismissing.(df[:rrmscdpp01p5]) .| ismissing.(df[:rrmscdpp15p0])) # TODO: WARNING: Doesn't include all CDPPs
   has_rest = .!(ismissing.(df[:rrmscdpp04p5]) .| ismissing.(df[:dataspan]) .| ismissing.(df[:dutycycle]))
-  is_usable = .&(has_mass, has_radius, has_dens, has_rest)
+  is_usable = .&(has_mass, has_radius, has_dens, has_cdpp, has_rest)
+  =# 
+
   # See options at: http://exoplanetarchive.ipac.caltech.edu/docs/API_keplerstellar_columns.html
-  # TODO SCI DETAIL or IMPORTANT?: Read in all CDPP's, so can interpolate?
-  symbols_to_keep = [ :kepid, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :rrmscdpp04p5, :dataspan, :dutycycle ]
+  # Now we read in all CDPP's, so can interpolate to transit duration
+  symbols_to_keep = [ :kepid, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :cdppslplong, :cdppslpshrt, :dataspan, :dutycycle ]
+
   delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
+  is_usable = [ !any(ismissing.([ df[i,j] for j in 1:size(df,2) ])) for i in 1:size(df,1) ]
   usable = find(is_usable)
   df = df[usable, symbols_to_keep]
   end
@@ -140,12 +146,12 @@ end # module StellarTable
 
 # using ExoplanetsSysSim.StellarTable
 
-function generate_star_from_table(sim_param::SimParam, id::Integer)
+function generate_star_from_table(sim_param::SimParam, id::Integer)  # WARNING:  To be renamed once there's a working/tested version that uses a stellar catalog with GAIA data
   mu_r = StellarTable.star_table(id,:radius)
   sig_r1 = StellarTable.star_table(id,:radius_err1)
   sig_r2 = StellarTable.star_table(id,:radius_err2)
   z = randn() 
-  r += (z>0) ?  z*sig_r1 : z*sig_r2
+  r = mu_r + (z>0) ?  z*sig_r1 : z*sig_r2
   m = rand(Normal(r,0.1))::Float64
   while m<0.0
     m = rand(Normal(r,0.1))::Float64
@@ -155,7 +161,7 @@ function generate_star_from_table(sim_param::SimParam, id::Integer)
     f = 1.0+0.1*randn()
   end
   # ld = LimbDarkeningParamQuadratic(0.5,0.5)
-  return SingleStar(r,m,f,0)
+  return SingleStar(r,m,f,id)
 end
 
 function generate_star_from_table(sim_param::SimParam)

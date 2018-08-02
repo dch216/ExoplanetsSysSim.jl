@@ -106,6 +106,38 @@ end
 
 
 ## planetary_system
+function draw_uniform_selfavoiding(n::Integer; lower_bound::Real=0.0, upper_bound=1.0, min_separation::Real = 0.05, return_sorted::Bool=false )
+    @assert(n>=1)
+    @assert(upper_bound>lower_bound)
+    @assert(2*min_separation*n<upper_bound-lower_bound)
+    list = rand(n)
+    sorted_idx = collect(1:n)
+    segment_length = upper_bound-lower_bound
+    list[1] = lower_bound+segment_length*list[1]   # First draw is standard uniform
+    segment_length -= min(upper_bound,list[1]+min_separation)-max(lower_bound,list[1]-min_separation) 
+    for i in 2:n
+        segment_length -= min(upper_bound,list[i-1]+min_separation)-max(lower_bound,list[i-1]-min_separation)   # Reduce length for future draws
+        list[i] *= segment_length    # Draw over reduced range based on which segments need to be excluded
+        list[i] += lower_bound
+        j = 1
+        while j<= i-1 # Checking for conflicts
+            k = sorted_idx[j]     # Going from low to high
+            if list[i]>list[k]-min_separation   # If too close, then bu
+               list[i] += min(upper_bound,list[k]+min_separation)-max(lower_bound,list[k]-min_separation)
+            else
+                break
+            end
+            j += 1
+        end
+        for k in i:-1:(j+1)   # Keep larger values sorted
+            sorted_idx[k]=sorted_idx[k-1]
+        end
+        sorted_idx[j] = i   # Save order for this draw
+        #segment_length -= min(upper_bound,list[i]+min_separation)-max(lower_bound,list[i]-min_separation)   # Reduce length for future draws
+   end 
+   return return_sorted ? list[sorted_idx] : list
+end
+
 function generate_num_planets_christiansen(s::Star, sim_param::SimParam)
   const max_tranets_in_sys::Int64 = get_int(sim_param,"max_tranets_in_sys")
   rate_tab::Array{Float64,2} = get_any(sim_param, "obs_par", Array{Float64,2})
@@ -119,27 +151,44 @@ function generate_period_and_sizes_christiansen(s::Star, sim_param::SimParam; nu
   
   limitP::Array{Float64,1} = get_any(sim_param, "p_lim_arr", Array{Float64,1})
   limitRp::Array{Float64,1} = get_any(sim_param, "r_lim_arr", Array{Float64,1})
-
+  sepa_min = 0.05  # Minimum orbital separation in AU
+  backup_sepa_factor_slightly_less_than_one = 0.95  
+    
   @assert ((length(limitP)-1) == size(rate_tab, 2))
   @assert ((length(limitRp)-1) == size(rate_tab, 1))
-  Plist = []
-  Rplist = []
+  Plist = zeros(num_pl)
+  Rplist = zeros(num_pl)
   rate_tab_1d = reshape(rate_tab,length(rate_tab))
   #logmaxcuml = logsumexp(rate_tab_1d)
   #cuml = cumsum_kbn(exp(rate_tab_1d-logmaxcuml))
   maxcuml = sum(rate_tab_1d)
   cuml = cumsum_kbn(rate_tab_1d/maxcuml)
 
+  # We assume uniform sampling in log P and log Rp within each bin
+  j_idx = ones(Int64, num_pl)
+    
   for n in 1:num_pl
     rollp = Base.rand()
     idx = findfirst(x -> x > rollp, cuml)
     i_idx = (idx-1)%size(rate_tab,1)+1
-    j_idx = floor(Int64,(idx-1)//size(rate_tab,1))+1
-    ### TODO: Keep uniform log sampling here?
-    Rp = exp(Base.rand()*(log(limitRp[i_idx+1])-log(limitRp[i_idx]))+log(limitRp[i_idx]))
-    P = exp(Base.rand()*(log(limitP[j_idx+1])-log(limitP[j_idx]))+log(limitP[j_idx]))
-    push!(Plist, P)
-    push!(Rplist, Rp)
+    j_idx[n] = floor(Int64,(idx-1)//size(rate_tab,1))+1
+    Rplist[n] = exp(Base.rand()*(log(limitRp[i_idx+1])-log(limitRp[i_idx]))+log(limitRp[i_idx]))
+  end
+    
+  for j in 1:(length(limitP)-1)
+    tmp_ind = find(x -> x == j, j_idx)
+    if length(tmp_ind) > 0
+      n_range = length(tmp_ind)    
+      loga_min = log(ExoplanetsSysSim.semimajor_axis(limitP[j], s.mass))
+      loga_min_ext = log(ExoplanetsSysSim.semimajor_axis(limitP[j], s.mass)+sepa_min)  # Used for determining minimum semimajor axis separation
+      loga_max = log(ExoplanetsSysSim.semimajor_axis(limitP[j+1], s.mass))
+      logsepa_min = min(loga_min_ext-loga_min, (loga_max-loga_min)/n_range/2*backup_sepa_factor_slightly_less_than_one)  # Prevents minimum separations too large
+      tmp_logalist = draw_uniform_selfavoiding(n_range,min_separation=logsepa_min,lower_bound=loga_min,upper_bound=loga_max)
+      tmp_Plist = exp.((3*tmp_logalist - log(s.mass))/2)*ExoplanetsSysSim.day_in_year  # Convert from log a (in AU) back to P (in days)
+      for n in 1:n_range
+        Plist[tmp_ind[n]] = tmp_Plist[n]
+      end
+    end
   end
   return Plist, Rplist
 end
@@ -158,7 +207,7 @@ function setup_christiansen(sim_param::SimParam; force_reread::Bool = false)
   add_param_fixed(sim_param,"read_stellar_catalog",true)
   add_param_fixed(sim_param,"num_kepler_targets",StellarTable.num_usable_in_star_table())
   if !haskey(sim_param.param,"num_targets_sim_pass_one")
-      add_param_fixed(sim_param_closure,"num_targets_sim_pass_one", StellarTable.num_usable_in_star_table())
+      add_param_fixed(sim_param,"num_targets_sim_pass_one", StellarTable.num_usable_in_star_table())
   end
   StellarTable.set_star_table(df)
   return df  
@@ -179,7 +228,7 @@ function setup_christiansen(filename::String; force_reread::Bool = false)
   end
   else
   try 
-    df = CSV.read(filename,nullable=true)
+    df = CSV.read(filename,allowmissing=:all)
   catch
     error(string("# Failed to read stellar catalog >",filename,"< in ascii format."))
   end
@@ -187,7 +236,8 @@ function setup_christiansen(filename::String; force_reread::Bool = false)
   has_mass = .! (ismissing.(df[:mass]) .| ismissing.(df[:mass_err1]) .| ismissing.(df[:mass_err2]))
   has_radius = .! (ismissing.(df[:radius]) .| ismissing.(df[:radius_err1]) .| ismissing.(df[:radius_err2]))
   has_dens = .! (ismissing.(df[:dens]) .| ismissing.(df[:dens_err1]) .| ismissing.(df[:dens_err2]))
-  has_rest = .! (ismissing.(df[:rrmscdpp04p5]) .| ismissing.(df[:dataspan]) .| ismissing.(df[:dutycycle]))
+  has_cdpp = .! (ismissing.(df[:rrmscdpp01p5]) .| ismissing.(df[:rrmscdpp02p0]) .| ismissing.(df[:rrmscdpp02p5]) .| ismissing.(df[:rrmscdpp03p0]) .| ismissing.(df[:rrmscdpp03p5]) .| ismissing.(df[:rrmscdpp04p5]) .| ismissing.(df[:rrmscdpp05p0]) .| ismissing.(df[:rrmscdpp06p0]) .| ismissing.(df[:rrmscdpp07p5]) .| ismissing.(df[:rrmscdpp09p0]) .| ismissing.(df[:rrmscdpp10p5]) .| ismissing.(df[:rrmscdpp12p0]) .| ismissing.(df[:rrmscdpp12p5]) .| ismissing.(df[:rrmscdpp15p0]))
+  has_rest = .! (ismissing.(df[:dataspan]) .| ismissing.(df[:dutycycle]))
   in_Q1Q12 = []
   for x in df[:st_quarters]
     subx = string(x)
@@ -207,13 +257,12 @@ function setup_christiansen(filename::String; force_reread::Bool = false)
       push!(is_FGK, false)
     end
   end
-  is_usable = has_radius .& is_FGK .& has_mass .& has_rest .& has_dens
+  is_usable = has_radius .& is_FGK .& has_mass .& has_rest .& has_dens .& has_cdpp
   if contains(filename,"q1_q16_stellar.csv")
     is_usable = is_usable .& in_Q1Q12
   end
   # See options at: http://exoplanetarchive.ipac.caltech.edu/docs/API_keplerstellar_columns.html
-  # TODO SCI DETAIL or IMPORTANT?: Read in all CDPP's, so can interpolate?
-  symbols_to_keep = [ :kepid, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :rrmscdpp04p5, :dataspan, :dutycycle ]
+  symbols_to_keep = [ :kepid, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :dataspan, :dutycycle ]
   delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
   usable = find(is_usable)
   df = df[usable, symbols_to_keep]
@@ -235,81 +284,7 @@ setup_star_table_christiansen(filename::String; force_reread::Bool = false) = se
 
 
 ## summary_statistics
-function calc_summary_stats_sim_pass_one_binned_rates(cat_obs::KeplerObsCatalog, cat_phys::KeplerPhysicalCatalog, param::SimParam )      # Version for simulated data, since includes cat_phys
-  ssd = Dict{String,Any}()
-  cache = Dict{String,Any}()
-
-  max_tranets_in_sys = get_int(param,"max_tranets_in_sys")    # Demo that simulation parameters can specify how to evalute models, too
-  @assert max_tranets_in_sys >= 1
-  idx_tranets = find(x::KeplerTargetObs-> length(x.obs) > 0, cat_obs.target)::Array{Int64,1}             # Find indices of systems with at least 1 tranet = potentially detectable transiting planet
-
-  # Count total number of tranets and compile indices for N-tranet systems
-  num_tranets = 0
-  idx_n_tranets = Vector{Int64}[ Int64[] for m = 1:max_tranets_in_sys]
-  for n in 1:max_tranets_in_sys-1
-    idx_n_tranets[n] = find(x::KeplerTargetObs-> length(x.obs) == n, cat_obs.target[idx_tranets] )
-    num_tranets += n*length(idx_n_tranets[n])
-  end
-  idx_n_tranets[max_tranets_in_sys] = find(x::KeplerTargetObs-> length(x.obs) >= max_tranets_in_sys, cat_obs.target[idx_tranets] )
-
-  num_tranets += max_tranets_in_sys*length(idx_n_tranets[max_tranets_in_sys])  # WARNING: this means we need to ignore planets w/ indices > max_tranets_in_sys
-  num_tranets  = convert(Int64,num_tranets)            # TODO OPT: Figure out why isn't this already an Int.  I may be doing something that prevents some optimizations
-
-  cache["num_tranets"] = num_tranets                                   
-  cache["idx_tranets"] = idx_tranets                                   # We can save lists of indices to summary stats for pass 2, even though we won't use these for computing a distance or probability
-  #cache["idx_n_tranets"] = idx_n_tranets
-
-  expected_num_detect = 0.0
-  expected_num_sys_n_tranets = zeros(max_tranets_in_sys)
-  period_list = zeros(num_tranets)
-  weight_list = zeros(num_tranets)
-  radius_list = zeros(num_tranets)
-
-  n = 1    # tranet id
-  for i in idx_tranets
-    for j in 1:num_planets(cat_obs.target[i])
-      p_tr_and_det = ExoplanetsSysSim.prob_detect(cat_obs.target[i].prob_detect,j)
-      expected_num_detect += p_tr_and_det
-      (s,p) = cat_obs.target[i].phys_id[j]
-      
-      period_list[n] = cat_phys.target[i].sys[s].orbit[p].P
-      weight_list[n] = p_tr_and_det
-      radius_list[n] = cat_phys.target[i].sys[s].planet[p].radius
-      n = n+1
-    end
-    for k in 1:max_tranets_in_sys
-      expected_num_sys_n_tranets[k] += ExoplanetsSysSim.prob_detect_n_planets(cat_obs.target[i].prob_detect,k)
-    end
-  end
-  ssd["expected planets detected"] = expected_num_detect
-  ssd["num_sys_tranets"] = expected_num_sys_n_tranets
-  ssd["num targets"] = get_int(param,"num_targets_sim_pass_one")
-  #println("expected planets = ",expected_num_detect,", num_sys_tranets = ",expected_num_sys_n_tranets,", num targets = ",ssd["num targets"])
-
-  limitP::Array{Float64,1} = get_any(param, "p_lim_arr", Array{Float64,1})
-  limitRp::Array{Float64,1} = get_any(param, "r_lim_arr", Array{Float64,1})
-
-  np_bin = zeros((length(limitP)-1) * (length(limitRp)-1))
-  np_bin_idx = 1
-  for i in 1:(length(limitP)-1)
-    P_match = find(x -> ((x > limitP[i]) && (x < limitP[i+1])), period_list)
-    for j in 1:(length(limitRp)-1)
-      R_match = find(x -> ((x > limitRp[j]) && (x < limitRp[j+1])), radius_list)
-      
-      bin_match = intersect(P_match, R_match)
-
-      np_bin[np_bin_idx] = sum(weight_list[bin_match])
-      np_bin_idx += 1
-    end
-  end
-
-  #ssd["expected planets detected"] = sum(np_bin)
-  ssd["expected planets table"] = np_bin
-
-  return CatalogSummaryStatistics(ssd, cache)
-end
-
-function calc_summary_stats_obs_binned_rates(cat_obs::KeplerObsCatalog, param::SimParam; trueobs_cat::Bool = false)
+function calc_summary_stats_obs_binned_rates(cat_obs::KeplerObsCatalog, param::SimParam; trueobs_cat::Bool = false, obs_skyavg::Bool = false)
   ssd = Dict{String,Any}()
   cache = Dict{String,Any}()
 
@@ -353,10 +328,17 @@ function calc_summary_stats_obs_binned_rates(cat_obs::KeplerObsCatalog, param::S
 
   if !trueobs_cat
     for i in idx_tranets
+      #Rstar = trueobs_cat ? cat_obs.target[i].star.radius : ExoplanetsSysSim.StellarTable.star_table(cat_obs.target[i].star.id, :radius) 
       for j in 1:num_planets(cat_obs.target[i])
         period_list[n] = cat_obs.target[i].obs[j].period
-        weight_list[n] = ExoplanetsSysSim.prob_detect(cat_obs.target[i].prob_detect,j)
-        radius_list[n] = sqrt(cat_obs.target[i].obs[j].depth)*cat_obs.target[i].star.radius
+        if obs_skyavg  
+          weight_list[n] = min(ExoplanetsSysSim.prob_detect(cat_obs.target[i].prob_detect,j), 1.0) # CHECK WHAT THIS DOES
+        else
+          weight_list[n] = 1.0
+        end
+        #radius_list[n] = sqrt(cat_obs.target[i].obs[j].depth)*cat_obs.target[i].star.radius
+        radius_list[n] = sqrt(cat_obs.target[i].obs[j].depth)*ExoplanetsSysSim.StellarTable.star_table(cat_obs.target[i].star.id, :radius)
+        #radius_list[n] = sqrt(cat_obs.target[i].obs[j].depth)*Rstar
         n = n+1
       end
     end
@@ -371,23 +353,30 @@ function calc_summary_stats_obs_binned_rates(cat_obs::KeplerObsCatalog, param::S
     end
   end
 
+  #ssd["period_list"] = period_list
+  ssd["weight_list"] = weight_list
+  #ssd["radius_list"] = radius_list
+  
   limitP::Array{Float64,1} = get_any(param, "p_lim_arr", Array{Float64,1})
   limitRp::Array{Float64,1} = get_any(param, "r_lim_arr", Array{Float64,1})
 
   np_bin = zeros((length(limitP)-1) * (length(limitRp)-1))
   np_bin_idx = 1
+  bin_match_list = fill(fill(0,0),(length(limitP)-1)*(length(limitRp)-1))
+  
   for i in 1:(length(limitP)-1)
     P_match = find(x -> ((x > limitP[i]) && (x < limitP[i+1])), period_list)
     for j in 1:(length(limitRp)-1)
       R_match = find(x -> ((x > limitRp[j]) && (x < limitRp[j+1])), radius_list)
       
       bin_match = intersect(P_match, R_match)
-
+      bin_match_list[np_bin_idx] = bin_match
       np_bin[np_bin_idx] = sum(weight_list[bin_match])
       np_bin_idx += 1
     end
   end
 
+  cache["bin_match_list"] = bin_match_list
   #ssd["planets detected"] = sum(np_bin)
   ssd["planets table"] = np_bin
 
@@ -404,22 +393,38 @@ function calc_distance_vector_binned(summary1::CatalogSummaryStatistics, summary
       println("# Summary 2, pass 1: ",summary2)
     end
     d = zeros(3)
-    # Since observed and simulated catalogs can have different summary statistics for the number of planets, prefer detections if avaliable (e.g., after pass2), otherwise use expected (e.g., from pass 1)
-    #np1 = haskey(summary1.stat,"planets detected") ? summary1.stat["planets detected"] : summary1.stat["expected planets detected"]
-    #np2 = haskey(summary2.stat,"planets detected") ? summary2.stat["planets detected"] : summary2.stat["expected planets detected"]
-    #d[1] = dist_L1_abs(np1/summary1.stat["num targets"],np2/summary2.stat["num targets"])    #  Normalize so different statistics weighted appropriately and not dominated by this one
-    #println("np1 = ",np1,", np2 = ",np2)
-    #println("np1 (normalized) = ",np1/summary1.stat["num targets"],", np2 (normalized) = ",np2/summary2.stat["num targets"],", d[1] = ",d[1])
 
     np1 = haskey(summary1.stat,"planets table") ? summary1.stat["planets table"] : summary1.stat["expected planets table"]
     np2 = haskey(summary2.stat,"planets table") ? summary2.stat["planets table"] : summary2.stat["expected planets table"]
-
     np_bin = zeros(length(np1))
+
+    ### Bernoulli distance
+    bin_match_list = summary2.cache["bin_match_list"]
+    @assert length(bin_match_list) == length(np1) 
+    np2 = zeros(Int64,length(np1))
+    ###  
+
     for n in 1:length(np1)
         #np_bin[n] = dist_L1_abs(np1[n]/summary1.stat["num targets"], np2[n]/summary2.stat["num targets"])
         #np_bin[n] = dist_L2_abs(np1[n]/summary1.stat["num targets"], np2[n]/summary2.stat["num targets"])
-        np_bin[n] = distance_poisson_draw(np2[n]/summary2.stat["num targets"]*summary1.stat["num targets"], convert(Int64, np1[n]))
-        
+        #np_bin[n] = distance_poisson_draw(np2[n]/summary2.stat["num targets"]*summary1.stat["num targets"], convert(Int64, np1[n]))
+        np_bin[n] = distance_sum_of_bernoulli_draws(floor(Int64,np1[n]),summary1.stat["num targets"], summary2.stat["weight_list"], summary2.stat["num targets"], bin_match_list[n])
+
+        ### Bernoulli distance
+        #= 
+        num_pl_match_p_and_r = length(bin_match_list[n])
+        num_draws = floor(Int64, num_pl_match_p_and_r * (summary1.stat["num targets"]/summary2.stat["num targets"]))
+        #for i in 1:num_pl_match_p_and_r
+        for i in 1:num_draws
+           pl_id = bin_match_list[n][1+i%num_pl_match_p_and_r]
+           prob_detect = min(summary2.stat["weight_list"][pl_id],1.0)
+           np2[n] += rand(Bernoulli(prob_detect))
+        end
+        #np_bin[n] = dist_L2_abs(np1[n]/summary1.stat["num targets"], np2[n]/summary2.stat["num targets"])
+        np_bin[n] = dist_L2_abs(np1[n]/summary1.stat["num targets"], np2[n]/summary1.stat["num targets"])
+        =#
+        ###
+
       #println("True # [Bin ", n,"] = ",np1[n],", Expected # [Bin ", n,"] = ",np2[n])
     end
       #d[1] = maximum(np_bin)
@@ -566,7 +571,8 @@ function cnt_np_bin(cat_obs::KeplerObsCatalog, param::SimParam, verbose::Bool = 
 	        pdet = 0.0
 	        for star_id in 1:num_targ
 	            star = SingleStar(ExoplanetsSysSim.StellarTable.star_table(star_id,:radius),ExoplanetsSysSim.StellarTable.star_table(star_id,:mass),1.0, star_id)
-	            cdpp = 1.0e-6 * ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp04p5) * sqrt(4.5/24.0 / ExoplanetsSysSim.LC_duration )
+                    cdpp_arr = (1.0e-6*sqrt(1./24.0/ExoplanetsSysSim.LC_duration)) .* [ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp01p5)*sqrt(1.5), ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp02p0)*sqrt(2.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp02p5)*sqrt(2.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp03p0)*sqrt(3.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp03p5)*sqrt(3.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp04p5)*sqrt(4.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp05p0)*sqrt(5.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp06p0)*sqrt(6.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp07p5)*sqrt(7.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp09p0)*sqrt(9.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp10p5)*sqrt(10.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp12p0)*sqrt(12.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp12p5)*sqrt(12.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp15p0)*sqrt(15.)]
+                    #cdpp = 1.0e-6 * ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp04p5) * sqrt(4.5/24.0 / ExoplanetsSysSim.LC_duration )
 	            contam = 0.0
 	            data_span = ExoplanetsSysSim.StellarTable.star_table(star_id, :dataspan)
 	            duty_cycle = ExoplanetsSysSim.StellarTable.star_table(star_id, :dutycycle)
@@ -575,7 +581,7 @@ function cnt_np_bin(cat_obs::KeplerObsCatalog, param::SimParam, verbose::Bool = 
                     incl = acos(Base.rand()*star.radius*ExoplanetsSysSim.rsol_in_au/ExoplanetsSysSim.semimajor_axis(pper, star.mass))
 	            orbit_arr[1] = Orbit(pper, 0., incl, 0., 0., Base.rand()*2.*pi)
 	            pl_arr[1] = Planet(prad, 1.0e-6)
-	            kep_targ = KeplerTarget([PlanetarySystem(star, pl_arr, orbit_arr)], fill(cdpp,ExoplanetsSysSim.num_cdpp_timescales,ExoplanetsSysSim.num_quarters),contam,data_span,duty_cycle)
+	            kep_targ = KeplerTarget([PlanetarySystem(star, pl_arr, orbit_arr)], repeat(cdpp_arr, outer=[1,1]),contam,data_span,duty_cycle)
                     
 	            duration_central = ExoplanetsSysSim.calc_transit_duration(kep_targ,1,1) 
 	            if duration_central <= 0.
@@ -610,7 +616,7 @@ function stellar_ess(param::SimParam, verbose::Bool = true)
   println(string("Stellar ESS calculation beginning..."))
   for star_id in 1:num_targ
     star = SingleStar(ExoplanetsSysSim.StellarTable.star_table(star_id,:radius),ExoplanetsSysSim.StellarTable.star_table(star_id,:mass),1.0, star_id)
-    cdpp = 1.0e-6 * ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp04p5) * sqrt(4.5/24.0 / ExoplanetsSysSim.LC_duration )
+    cdpp_arr = (1.0e-6*sqrt(1./24.0/ExoplanetsSysSim.LC_duration)) .* [ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp01p5)*sqrt(1.5), ExoplanetsSysSim.StellarTable.star_table(star_id, :rrmscdpp02p0)*sqrt(2.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp02p5)*sqrt(2.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp03p0)*sqrt(3.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp03p5)*sqrt(3.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp04p5)*sqrt(4.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp05p0)*sqrt(5.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp06p0)*sqrt(6.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp07p5)*sqrt(7.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp09p0)*sqrt(9.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp10p5)*sqrt(10.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp12p0)*sqrt(12.), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp12p5)*sqrt(12.5), ExoplanetsSysSim.StellarTable.star_table(star_id,:rrmscdpp15p0)*sqrt(15.)]
     contam = 0.0
     data_span = ExoplanetsSysSim.StellarTable.star_table(star_id, :dataspan)
     duty_cycle = ExoplanetsSysSim.StellarTable.star_table(star_id, :dutycycle)
@@ -630,7 +636,7 @@ function stellar_ess(param::SimParam, verbose::Bool = true)
           incl = acos(Base.rand()*star.radius*ExoplanetsSysSim.rsol_in_au/ExoplanetsSysSim.semimajor_axis(pper, star.mass))
 	  orbit_arr[1] = Orbit(pper, 0., incl, 0., 0., Base.rand()*2.*pi)
 	  pl_arr[1] = Planet(prad, 1.0e-6)
-	  kep_targ = KeplerTarget([PlanetarySystem(star, pl_arr, orbit_arr)], fill(cdpp,ExoplanetsSysSim.num_cdpp_timescales,ExoplanetsSysSim.num_quarters),contam,data_span,duty_cycle)
+	  kep_targ = KeplerTarget([PlanetarySystem(star, pl_arr, orbit_arr)], repeat(cdpp_arr, outer=[1,1]),contam,data_span,duty_cycle)
 
 	  duration_central = ExoplanetsSysSim.calc_transit_duration(kep_targ,1,1) 
 	  if duration_central <= 0.

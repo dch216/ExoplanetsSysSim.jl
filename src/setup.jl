@@ -18,7 +18,7 @@ catch
 end
 
 try
-  Pkg.clone("git@github.com:jbrakensiek/CORBITSa.git")
+  Pkg.clone("git@github.com:jbrakensiek/CORBITS.git")
 
   # Compile CORBITS library and put it somewhere we can find
   cd(joinpath(Pkg.dir(),"CORBITS"))

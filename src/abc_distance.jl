@@ -88,7 +88,34 @@ function distance_poisson_draw(lambda::Real, k::Integer)
   abs( simulated_number_of_detections -k)
 end
 
-# TODO SCI: IMPORTANT:  Replace this distance function with something well thought out
+
+function distance_sum_of_bernoulli_draws(num_pl_obs::Integer, num_targets_obs::Integer, prob_detect_list::Vector{TReal}, num_targets_sim::Integer, bin_match_list::Vector{TInt}) where {TReal<:Real, TInt<:Integer}
+   @assert(0<=num_pl_obs<=num_targets_obs)
+   num_pl_match = length(bin_match_list)
+   @assert(0<=length(bin_match_list)) 
+
+   num_detect_sim = 0
+   if num_pl_match >= 1 
+      num_draws_all = floor(Int64, num_targets_obs/num_targets_sim)
+      @assert(1<=num_draws_all<=100)
+      for i in 1:num_pl_match
+         pl_id = bin_match_list[i]
+         @assert(1<=pl_id<=length(prob_detect_list))
+         prob_detect = min(prob_detect_list[pl_id],1.0)
+         num_detect_sim += sum(rand(Bernoulli(prob_detect),num_draws_all))
+      end
+      # If number of targets observed is not a multiple of number of targets simulated, then pick a random set to make total number of draws equal (as long as there are some planets to choose from)
+      for i in (num_pl_match*num_draws_all+1):(floor(Int64,num_pl_match*num_targets_obs/num_targets_sim))
+          pl_id = bin_match_list[rand(1:num_pl_match)]
+          prob_detect = min(prob_detect_list[pl_id],1.0)
+          num_detect_sim += rand(Bernoulli(prob_detect))
+      end
+   end
+   distance = dist_L2_abs(num_pl_obs/num_targets_obs, num_detect_sim/num_targets_obs)
+end
+
+
+# TODO USER SCI: IMPORTANT:  Replace the distance function with something well thought out for your particular scientific application.  See examples
 function calc_distance_vector_demo(summary1::CatalogSummaryStatistics, summary2::CatalogSummaryStatistics, pass::Int64, sim_param::SimParam ; verbose::Bool = false)
   d = Array{Float64}(0)
   if pass == 1

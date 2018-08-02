@@ -1,6 +1,8 @@
 ## ExoplanetsSysSim/src/koi_table.jl
 ## (c) 2015 Eric B. Ford
 
+# Note this file is currently not used by SysSim.
+# This functionality is now in kepler_catalog.jl
 
 module KoiTable
 using ExoplanetsSysSim

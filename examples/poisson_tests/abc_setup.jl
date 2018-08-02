@@ -35,7 +35,8 @@ module EvalSysSimModel
     # TODO OPT: Eventually, could adapt ABC.jl to use distance from first pass to decide if should compute additional summary statistics
     function calc_summary_stats(cat::KeplerObsCatalog)
       global sim_param_closure
-      sum_stat = calc_summary_stats_obs_binned_rates(cat, sim_param_closure)
+      sum_stat = calc_summary_stats_obs_binned_rates(cat, sim_param_closure, obs_skyavg = true)
+      #sum_stat = calc_summary_stats_obs_binned_rates(cat, sim_param_closure, obs_skyavg = false)
       return sum_stat
     end
 
@@ -80,10 +81,11 @@ end  # module EvalSysSimModel
 include(joinpath(Pkg.dir("ABC"),"src/composite.jl"))
 
 module SysSimABC
-  export setup_abc, run_abc
+  export setup_abc, run_abc, run_abc_largegen
   import ABC
   import Distributions
   using CompositeDistributions
+  using Compat
   import ExoplanetsSysSim
   import EvalSysSimModel
   include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","poisson_tests", "christiansen_func.jl"))
@@ -97,7 +99,7 @@ module SysSimABC
     calc_distance_ltd(sum_stat_obs::ExoplanetsSysSim.CatalogSummaryStatistics,sum_stat_sim::ExoplanetsSysSim.CatalogSummaryStatistics) = EvalSysSimModel.calc_distance(sum_stat_obs,sum_stat_sim,num_dist)
 
     global abc_plan = ABC.abc_pmc_plan_type(EvalSysSimModel.gen_data,EvalSysSimModel.calc_summary_stats,calc_distance_ltd, param_prior, make_proposal_dist=ABC.make_proposal_dist_gaussian_diag_covar, is_valid=EvalSysSimModel.is_valid,
-                                     num_part=50, num_max_attempt=50, num_max_times=200, epsilon_init=9.9e99, target_epsilon=1.0e-100, in_parallel=in_parallel, adaptive_quantiles = false, epsilon_reduction_factor=0.9, tau_factor=2.0);
+                                     num_part=50, num_max_attempt=50, num_max_times=10, epsilon_init=9.9e99, target_epsilon=1.0e-100, in_parallel=in_parallel, adaptive_quantiles = false, epsilon_reduction_factor=0.9, tau_factor=2.0);
   end
 
   function run_abc_largegen(pop::ABC.abc_population_type, ss_true::ExoplanetsSysSim.CatalogSummaryStatistics, epshist_targ::Float64, npart::Integer = 1000, num_dist::Integer = 0)
@@ -116,12 +118,17 @@ module SysSimABC
                                      num_part=npart, num_max_attempt=50, num_max_times=1, epsilon_init=9.9e99, target_epsilon=1.0e-100, in_parallel=in_parallel);
 
     println("# run_abc_largegen: ",EvalSysSimModel.sim_param_closure)
-    sampler_plot = abc_plan.make_proposal_dist(pop, abc_plan.tau_factor)
-    theta_plot = Array(Float64,(size(pop.theta, 1), npart))
+    sampler_largegen = abc_plan.make_proposal_dist(pop, abc_plan.tau_factor)
+    theta_largegen = Array{Float64}(size(pop.theta, 1), npart)
+    weight_largegen = Array{Float64}(npart)
     for i in 1:npart
-      theta_plot[:,i], dist_plot, attempts_plot = ABC.generate_theta(abc_plan, sampler_plot, ss_true, epshist_targ)
+      theta_val, dist_largegen, attempts_largegen = ABC.generate_theta(abc_plan, sampler_largegen, ss_true, epshist_targ)
+      theta_largegen[:,i] = theta_val  
+      prior_logpdf = Distributions.logpdf(abc_plan.prior,theta_val)
+      sampler_logpdf = ABC.logpdf(sampler_largegen, theta_val)
+      weight_largegen[i] = exp(prior_logpdf-sampler_logpdf)
     end
-    return theta_plot
+    return theta_largegen, weight_largegen
   end
 
   function run_abc(abc_plan::ABC.abc_pmc_plan_type)
