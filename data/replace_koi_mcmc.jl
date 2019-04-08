@@ -64,12 +64,7 @@ for j in 1:length(df[:kepoi_name])
     end
 end
 
-delete!(df, :depth_mean)
-delete!(df, :depth_std)
-delete!(df, :duration_mean)
-delete!(df, :duration_std)
-delete!(df, :radr_gt1_cnt)
-delete!(df, :b_gt1_cnt)
+delete!(df, [:depth_mean, :depth_std, :duration_mean, :duration_std, :radr_gt1_cnt, :b_gt1_cnt])
 for i in 1:num_quantiles
     delete!(df, Symbol("depth_q" * string(i)))
     delete!(df, Symbol("duration_q" * string(i)))
