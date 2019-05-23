@@ -12,5 +12,5 @@ To perform the actual calculations, you run:
 > julia abc_run.jl
 ```
 
-This defaults to computing a planet candidate occurrence rate and rate density for 5 period-radius bins spanning the 0.5-1.75 R_Earth and 237-500 days.
+This defaults to computing a planet candidate occurrence rate and rate density for 5 period-radius bins spanning 0.5-1.75 R_Earth and 237-500 days.
 For other ranges, you'd edit the values of p_bin_lim and r_bin_lim in param.in.
