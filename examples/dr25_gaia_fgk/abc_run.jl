@@ -1,6 +1,6 @@
-## ExoplanetsSysSim/examples/hsu_etal_2018/abc_run.jl
-## (c) 2018 Danley C. Hsu & Eric B. Ford
-# Script for producing Q1-Q16 FGK planet candidate occurrence rate estimates
+## ExoplanetsSysSim/examples/dr25_gaia_fgk/abc_run.jl
+## (c) 2019 Danley C. Hsu & Eric B. Ford
+# Script for producing DR25 FGK planet candidate occurrence rate estimates
 
 include("abc_setup.jl")
 
