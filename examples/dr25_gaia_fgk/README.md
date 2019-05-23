@@ -1,5 +1,5 @@
 # Required Files:
-To reproduce a calculation from Hsu et al. (2019), you will need the following files:
+To reproduce a calculation from Hsu et al. (2019), you will need the following data files (under the 'data' sub-directory of the repository):
 * "DR25topwinfuncs.jld": Summary of window function data taken from the DR25 Completeness Products
 * "dr25fgk_osds.jld": One-sigma depth functions for the filtered catalog of Kepler planet search targets (Not part of the repository, download from: https://psu.box.com/v/Kepler1SigmaDepthFuncsHsu2019).
 * "KeplerMAST_TargetProperties.csv": Summary of key properties for Kepler Targets that are not included in the other catalogs.
