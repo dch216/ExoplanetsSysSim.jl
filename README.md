@@ -2,7 +2,7 @@
 Welcome to the ExoplanetsSysSim package for generating planetary systems and simulating observations of those systems with a transit survey.  Currently, SysSim focuses on NASA's Kepler mission, but we've aimed to develop a generic framework that can be applied to other surveys (e.g., K2, TESS, PLATO, LSST, etc.).
 
 # How to get started:
-* Make sure you have julia and git installed.
+* Make sure you have julia v0.6 and git installed.
 * If you want to use ssh keys instead of https authentication (to minimize typing your github password), then:
   * Setup a local ssh key using ssh-keygen
   * Tell Github about your ssh key:  Person Icon (upper right), Settings, SSH & GPG keys, New SSH Key.  Entry a name in the title box and paste the contents of `cat ~/.ssh/id_rsa.pub` into the "Key" box. Add SSH Key.  
@@ -36,7 +36,8 @@ julia syssim_dist.jl demo_param.in demo_ss.out
 * Create your own feature branch and start adding features to make SysSim even more realistic and powerful
 * Write papers and cite relevant publications (e.g., Hsu et al. 2018)
 
-NOTE: To run simulations which use the same forward model discussed in Hsu et al. (2018), please go to the "examples/hsu_etal_2018/" sub-directory.
+NOTE: To run simulations which use the same forward model discussed in Hsu et al. (2018), please go to the "examples/hsu_etal_2018/" sub-directory.  
+Alternatively, to run simulations which use the same forward model discussed in Hsu et al. (2019), please go to the "examples/dr25_gaia_fgk/" sub-directory.
 
 # Team:
 ## Developers:

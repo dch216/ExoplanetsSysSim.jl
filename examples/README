@@ -4,6 +4,7 @@ Working:
 abc                 = Run a full ABC simulation with basic ExoplanetsSysSim providing the model.
 basic               = Run multiple test scripts to test functionality of ExoplanetsSysSim and ABC.
 hsu_etal_2018       = Run full ABC simulations to produce the results of Hsu et al. (2018).
+dr25_gaia_fgk       = Run full ABC simulations to produce the results of Hsu et al. (2019).
 
 In-Progress:
 clusters            = Developing model using clusters for period ratio studies
