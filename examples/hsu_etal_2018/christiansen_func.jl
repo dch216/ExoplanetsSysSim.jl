@@ -148,9 +148,8 @@ end
 ## stellar_table
 function setup_christiansen(sim_param::SimParam; force_reread::Bool = false)
   #global df
-  df = ExoplanetsSysSim.StellarTable.df
   if haskey(sim_param,"read_stellar_catalog") && !force_reread
-     return df
+     return ExoplanetsSysSim.StellarTable.df
      #return data
   end
   stellar_catalog_filename = convert(String,joinpath(Pkg.dir("ExoplanetsSysSim"), "data", convert(String,get(sim_param,"stellar_catalog","q1_q17_dr25_stellar.csv")) ) )
@@ -165,21 +164,18 @@ function setup_christiansen(sim_param::SimParam; force_reread::Bool = false)
 end
 
 function setup_christiansen(filename::String; force_reread::Bool = false)
-  #global df, usable
-  df = ExoplanetsSysSim.StellarTable.df
-  usable = ExoplanetsSysSim.StellarTable.usable
+  #df = ExoplanetsSysSim.StellarTable.df
   if ismatch(r".jld$",filename)
   try 
     data = load(filename)
     df::DataFrame = data["stellar_catalog"]
-    usable::Array{Int64,1} = data["stellar_catalog_usable"]
-    StellarTable.set_star_table(df, usable)
   catch
     error(string("# Failed to read stellar catalog >",filename,"< in jld format."))
   end
   else
   try 
-    df = CSV.read(filename,nullable=true)
+    #df = CSV.read(filename,nullable=true)
+    df = CSV.read(filename, allowmissing=:all)
   catch
     error(string("# Failed to read stellar catalog >",filename,"< in ascii format."))
   end
@@ -193,7 +189,7 @@ function setup_christiansen(filename::String; force_reread::Bool = false)
     subx = string(x)
     subx = ("0"^(17-length(subx)))*subx
     indQ = search(subx, '1')
-    if ((indQ < 1) | (indQ > 12))
+    if ((indQ < 1) | (indQ > 12)) 
       push!(in_Q1Q12, false)
     else
       push!(in_Q1Q12, true)
@@ -212,8 +208,8 @@ function setup_christiansen(filename::String; force_reread::Bool = false)
     is_usable = is_usable .& in_Q1Q12
   end
   # See options at: http://exoplanetarchive.ipac.caltech.edu/docs/API_keplerstellar_columns.html
-  # TODO SCI DETAIL or IMPORTANT?: Read in all CDPP's, so can interpolate?
-  symbols_to_keep = [ :kepid, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :rrmscdpp04p5, :dataspan, :dutycycle ]
+  symbols_to_keep = [ :kepid, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :dataspan, :dutycycle ]
+
   delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
   usable = find(is_usable)
   df = df[usable, symbols_to_keep]
@@ -222,12 +218,14 @@ function setup_christiansen(filename::String; force_reread::Bool = false)
       tmp_df[col] = collect(skipmissing(df[col]))
   end
   df = tmp_df
-  StellarTable.set_star_table(df, usable)
+  StellarTable.set_star_table(df)
   end
+#    println("# Removing stars observed <5 quarters (not done in original Hsu et al paper).")
+#    df[:wf_id] = map(x->ExoplanetsSysSim.WindowFunction.get_window_function_id(x,use_default_for_unknown=false),df[:kepid])
+#    obs_5q = df[:wf_id].!=-1
+#    df = df[obs_5q,keys(df.colindex)]
+#    StellarTable.set_star_table(df)
   return df
-  #global data = convert(Array{Float64,2}, df) # df[usable, symbols_to_keep] )
-  #global colid = Dict(zip(names(df),[1:length(names(df))]))
-  #return data
 end
 
 setup_star_table_christiansen(sim_param::SimParam; force_reread::Bool = false) = setup_christiansen(sim_param, force_reread=force_reread)

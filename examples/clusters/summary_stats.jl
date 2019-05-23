@@ -3,7 +3,6 @@
 #using JLD
 #using DataFrames
 #import ExoplanetsSysSim.StellarTable.df
-#import ExoplanetsSysSim.StellarTable.usable
 
 ## summary_statistics borrowed from multiple_planets example, eventually should be merged into main branch
 

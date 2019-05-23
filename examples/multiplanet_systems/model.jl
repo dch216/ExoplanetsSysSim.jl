@@ -3,7 +3,6 @@ using StatsFuns
 using JLD
 using DataFrames
 #import ExoplanetsSysSim.StellarTable.df
-#import ExoplanetsSysSim.StellarTable.usable
 #import Compat: UTF8String, ASCIIString
 
 ## simulation_parameters
@@ -176,15 +175,12 @@ function setup_star_table_christiansen(sim_param::SimParam; force_reread::Bool =
 end
 
 function setup_star_table_christiansen(filename::String; force_reread::Bool = false)
-  #global df, usable
   df = ExoplanetsSysSim.StellarTable.df
-  usable = ExoplanetsSysSim.StellarTable.usable
   if ismatch(r".jld$",filename)
   try 
     data = load(filename)
     df::DataFrame = data["stellar_catalog"]
-    usable::Array{Int64,1} = data["stellar_catalog_usable"]
-    ExoplanetsSysSim.StellarTable.set_star_table(df, usable)
+    ExoplanetsSysSim.StellarTable.set_star_table(df)
   catch
     error(string("# Failed to read stellar catalog >",filename,"< in jld format."))
   end
@@ -229,7 +225,7 @@ function setup_star_table_christiansen(filename::String; force_reread::Bool = fa
   delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
   usable = find(is_usable)
   df = df[usable, symbols_to_keep]
-  set_star_table(df, usable)
+  set_star_table(df)
   end
   return df
 end

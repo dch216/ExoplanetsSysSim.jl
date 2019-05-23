@@ -1,7 +1,8 @@
 # All accepted parameters are listed
 # To use default parameters, add a '#' character at the beginning of the line
 
-#stellar_catalog = "q1_q16_christiansen.jld" # data file for stellar catalog [DEFAULT = "q1_q16_christiansen.jld"]
+#stellar_catalog = "q1_q16_christiansen.jld" # data file for stellar catalog [DEFAULT = "q1_q16_christiansen.jld"]  # TODO: Needs to be updated to include all CDPPs
+stellar_catalog = "q1_q16_stellar.csv" # data file for stellar catalog [DEFAULT = "q1_q16_christiansen.jld"]
 koi_catalog = "q1_q16_koi_cand.csv"          # data file for KOI catalog [NO DEFAULT VALUE]
 
 #num_targ_sim = 150518                       # number of planetary systems in simulated catalogs 

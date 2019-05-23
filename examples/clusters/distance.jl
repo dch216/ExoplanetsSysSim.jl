@@ -3,7 +3,6 @@
 #using JLD
 #using DataFrames
 #import ExoplanetsSysSim.StellarTable.df
-#import ExoplanetsSysSim.StellarTable.usable
 import Compat: UTF8String, ASCIIString
 
 function calc_distance_model_ks(summary1::CatalogSummaryStatistics, summary2::CatalogSummaryStatistics, sim_param::SimParam ; verbose::Bool = false)

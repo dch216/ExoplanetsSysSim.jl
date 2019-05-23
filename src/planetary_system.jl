@@ -225,8 +225,8 @@ end
 
 function generate_e_omega_rayleigh_direct(sigma_hk::Float64; max_e::Float64 = 1.0)
   @assert(0<max_e<=1.0)
-  ecc = rand( TruncatedUpper(Rayleigh(sigma_hk),max_e) )
-  w = 2pi*rand()
+  ecc::Float64 = rand( TruncatedUpper(Rayleigh(sigma_hk),max_e) )
+  w::Float64 = 2pi*rand()
   return ecc, w
 end
 
@@ -237,8 +237,8 @@ function generate_e_omega_rayleigh_two_gaussians(sigma_hk::Float64; max_e::Float
     h = sigma_hk*randn()
     k = sigma_hk*randn()
   end
-  ecc = sqrt(h*h+k*k)
-  w = atan2(k,h)
+  ecc::Float64 = sqrt(h*h+k*k)
+  w::Float64 = atan2(k,h)
   return ecc, w
 end
 

@@ -55,6 +55,9 @@ module EvalSysSimModel
     #cat_obs = simulated_read_kepler_observations(sim_param_closure)
     ###
     
+    println("# Reading in window function data")
+    WindowFunction.setup(sim_param_closure)
+    println("# Finished reading in window function data")
     ### Use real planet candidate catalog data
     df_star = setup_star_table_christiansen(sim_param_closure)
     println("# Finished reading in stellar data")

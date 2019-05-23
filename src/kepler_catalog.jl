@@ -19,7 +19,7 @@ end
 type KeplerObsCatalog
   target::Array{KeplerTargetObs,1}
 end
-#KeplerObsCatalog() = KeplerObsCatalog([])
+KeplerObsCatalog() = KeplerObsCatalog(KeplerTargetObs[])
 
 function generate_kepler_physical_catalog(sim_param::SimParam)
    if haskey(sim_param,"stellar_catalog")
@@ -46,7 +46,7 @@ end
 function observe_kepler_targets(calc_target_obs::Function, input::KeplerPhysicalCatalog, sim_param::SimParam )
   #calc_target_obs = get_function(sim_param,"calc_target_obs_sky_ave")
   #calc_target_obs = get_function(sim_param,"calc_target_obs_single_obs")
-  output = KeplerObsCatalog([])
+  output = KeplerObsCatalog()
   if haskey(sim_param,"mem_kepler_target_obs")
      output.target = get(sim_param,"mem_kepler_target_obs",Array{KeplerTargetObs}(0) )
   end
@@ -97,13 +97,9 @@ function generate_obs_targets(cat_phys::KeplerPhysicalCatalog, sim_param::SimPar
    	a::Float64 = semimajor_axis(sys,pl)
    	Rstar::Float64 = rsol_in_au*sys.star.radius
        
-        # TODO WARNING: CHECK WHAT SHOULD BE DOING HERE
-   	#if (Rstar < (a*(1-ecc)*(1+ecc))/(1+ecc*sin(sys.orbit[pl].omega))*cos(incl)) || (rand() > calc_prob_detect_if_transit_central(cat_phys.target[t], ps, pl, sim_param))
-   	#if (Rstar < (a*(1-ecc)*(1+ecc))/(1+ecc*sin(sys.orbit[pl].omega))*cos(incl)) || (rand() > calc_prob_detect_if_transit_with_actual_b(cat_phys.target[t], ps, pl, sim_param))
         does_it_transit = does_planet_transit(sys, pl)
         pdet_if_tr = does_it_transit ? calc_prob_detect_if_transit_with_actual_b(kep_targ, ps, pl, sim_param) : 0.
         if !does_it_transit || (rand()>pdet_if_tr)
-
     	  splice!(cat_phys.target[t].sys[ps].orbit, pl)
 	  splice!(cat_phys.target[t].sys[ps].planet, pl)
      	end
@@ -117,10 +113,10 @@ end
 # The following function is primarily left for debugging.  
 function simulated_read_kepler_observations(sim_param::SimParam )
    println("# WARNING: Using simulated_read_kepler_observations.")
-   if haskey(sim_param,"stellar_catalog")
-      star_tab_func = get_function(sim_param, "star_table_setup")
-      star_tab_func(sim_param)
-   end
+   # if haskey(sim_param,"stellar_catalog")
+   #    star_tab_func = get_function(sim_param, "star_table_setup")
+   #    star_tab_func(sim_param)
+   # end
    num_sys = get_int(sim_param,"num_kepler_targets")
    generate_kepler_target = get_function(sim_param,"generate_kepler_target")
    target_list = Array{KeplerTarget}(num_sys)
@@ -128,7 +124,7 @@ function simulated_read_kepler_observations(sim_param::SimParam )
 
    cat_phys_cut = generate_obs_targets(KeplerPhysicalCatalog(target_list), sim_param)
    calc_target_obs = get_function(sim_param,"calc_target_obs_single_obs")
-   output = KeplerObsCatalog([])
+   output = KeplerObsCatalog()
    output.target = map(x::KeplerTarget->calc_target_obs(x,sim_param)::KeplerTargetObs, cat_phys_cut.target)
    return output
 end
@@ -152,7 +148,7 @@ function read_koi_catalog(filename::String, force_reread::Bool = false)
             error(string("# Failed to read koi catalog >",filename,"< in jld format."))
         end
     else
-        try
+       try
             tmp_koi_cat = readlines(filename)
             tmp_ind = 1
             num_skip = 1
@@ -172,10 +168,23 @@ function read_koi_catalog(filename::String, force_reread::Bool = false)
             has_period = .!(ismissing.(df[:koi_period]) .| ismissing.(df[:koi_period_err1]) .| ismissing.(df[:koi_period_err2]))
 
             is_usable = .&(is_cand, has_radius, has_period)
-            usable = find(is_usable)
-        catch
-            error(string("# Failed to read koi catalog >",filename,"< in ascii format."))
-        end
+
+           #  symbols_to_keep = [:kepid, :kepoi_name, :koi_pdisposition, :koi_score, :koi_ror, :koi_period, :koi_period_err1, :koi_period_err2, :koi_time0bk, :koi_time0bk_err1, :koi_time0bk_err2, :koi_depth, :koi_depth_err1, :koi_depth_err2, :koi_duration, :koi_duration_err1, :koi_duration_err2]
+
+           # delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
+           
+           usable = find(is_usable)
+        
+           # df = df[usable, symbols_to_keep]
+           # tmp_df = DataFrame()    
+           # for col in names(df)
+           #     tmp_df[col] = collect(skipmissing(df[col]))
+           # end
+           # df = tmp_df
+           # usable = collect(1:length(df[:kepid]))
+       catch
+           error(string("# Failed to read koi catalog >",filename,"< in ascii format."))
+       end
     end
     return df, usable
 end
@@ -217,7 +226,7 @@ function setup_actual_planet_candidate_catalog(df_star::DataFrame, df_koi::DataF
         tot_plan = count(x->x, koi_subset)
     end
     
-    output = KeplerObsCatalog([])
+    output = KeplerObsCatalog()
     df_obs = join(df_star, df_koi, on = :kepid)
     #df_obs = sort!(df_obs, cols=(:kepid))
     df_obs = sort!(df_obs, (:kepid))
@@ -236,7 +245,7 @@ function setup_actual_planet_candidate_catalog(df_star::DataFrame, df_koi::DataF
             end
             num_pl = plid
             target_obs = KeplerTargetObs(num_pl)
-	    target_obs.star = ExoplanetsSysSim.StarObs(df_obs[i,:radius],df_obs[i,:mass],0)
+	    target_obs.star = ExoplanetsSysSim.StarObs(df_obs[i,:radius],df_obs[i,:mass],findfirst(df_star[:kepid], df_obs[i,:kepid]))
         end
         
         target_obs.obs[plid] = ExoplanetsSysSim.TransitPlanetObs(df_obs[i,:koi_period],df_obs[i,:koi_time0bk],df_obs[i,:koi_depth]/1.0e6,df_obs[i,:koi_duration])

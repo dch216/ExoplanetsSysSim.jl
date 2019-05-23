@@ -6,7 +6,6 @@ if !isdefined(:CSV) using CSV end
 #import DataFrames.DataFrame, DataFrames.isna
 import DataFrames.DataFrame, DataArrays.ismissing
 #import ExoplanetsSysSim.StellarTable.df
-#import ExoplanetsSysSim.StellarTable.usable
 
 ## Old code for generating stellar properties # TODO: WARNING: Should eventually use version in main branch to make sure have recent improvements
 
@@ -26,15 +25,13 @@ function setup_star_table_christiansen(sim_param::SimParam; force_reread::Bool =
 end
 
 function setup_star_table_christiansen(filename::String; force_reread::Bool = false)
-  #global df, usable
+  #global df
   df = ExoplanetsSysSim.StellarTable.df
-  usable = ExoplanetsSysSim.StellarTable.usable
   if ismatch(r".jld$",filename)
   try 
     data = DataFrames.load(filename)
     df::DataFrame = data["stellar_catalog"]
-    usable::Array{Int64,1} = data["stellar_catalog_usable"]
-    ExoplanetsSysSim.StellarTable.set_star_table(df, usable)
+    ExoplanetsSysSim.StellarTable.set_star_table(df)
   catch
     error(string("# Failed to read stellar catalog >",filename,"< in jld format."))
   end
@@ -83,7 +80,7 @@ function setup_star_table_christiansen(filename::String; force_reread::Bool = fa
   delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
   usable = find(is_usable)
   df = df[usable, symbols_to_keep]
-  ExoplanetsSysSim.StellarTable.set_star_table(df, usable)
+  ExoplanetsSysSim.StellarTable.set_star_table(df)
 #end
   return df
 end

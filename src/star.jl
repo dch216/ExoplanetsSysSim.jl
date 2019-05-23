@@ -9,8 +9,9 @@ immutable Star <: StarAbstract
   radius::Float64
   mass::Float64
   flux::Float64                      # relevant once have multiple stars in one target
-  # ld_param::LimbDarkeningParamAbstract         # TODO SCI DETAIL: add limb darkening param?
+  ld::LimbDarkeningParamAbstract         # TODO SCI DETAIL: add limb darkening param?
   id::Int64                          # id for looking up properties in stellar catalog
+
 end
 #typealias SingleStar Star
 SingleStar = Star
@@ -57,8 +58,9 @@ function generate_star_dumb(sim_param::SimParam)
   while f<0.0
     f = 1.0+0.1*randn()
   end
-  # ld = LimbDarkeningParamQuadratic(0.5,0.5)
-  return SingleStar(r,m,f,0) 
+  ld = LimbDarkeningParamQuadratic(0.4603,0.2291)   # TODO: Once we implement limb darkening
+  return SingleStar(r,m,f,ld,0) 
+  #return SingleStar(r,m,f,0) 
 end
 
 

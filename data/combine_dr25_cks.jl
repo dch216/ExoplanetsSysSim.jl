@@ -54,4 +54,4 @@ stellar_catalog_file_out = joinpath(Pkg.dir("ExoplanetsSysSim"), "data", "q1_q17
   usable = find(is_usable)
   df = df[usable, symbols_to_keep]
 
-save(stellar_catalog_file_out,"stellar_catalog", df, "stellar_catalog_usable", usable)
+save(stellar_catalog_file_out,"stellar_catalog", df)

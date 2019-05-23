@@ -1,6 +1,16 @@
 ## ExoplanetsSysSim.jl
 ## (c) 2015 Eric B. Ford
 
+module SimulationParameters
+
+import Compat: @compat, readstring
+
+export SimParam, add_param_fixed, add_param_active, update_param, set_active, set_inactive, is_active
+export get_any, get_real, get_int, get_function
+export make_vector_of_active_param_keys, make_vector_of_sim_param, get_range_for_sim_param, update_sim_param_from_vector!
+export setup_sim_param_demo, test_sim_param_constructors
+#export preallocate_memory!
+
 const global version_id_str = "0.3.1"
 const global version_id_pair = ("version",version_id_str)
 const global julia_version_pair = ("version_julia",string(VERSION))
@@ -27,7 +37,7 @@ end
 ### SimParam()
 Creates a nearly empty SimParam object, with just the version id and potentially other information about the code, system, runtime, etc.
 """ ->
-SimParam() = SimParam( Dict{String,Any}([version_id_pair,julia_version_pair,("hostname",gethostname()), ("username",ENV["USER"]), ("date",chomp(@compat readstring(`date`))),("time",time()),("ExoplanetsSysSim directory",Pkg.dir("ExoplanetsSysSim")),("ExoplanetsSysSim branch",LibGit2.headname(LibGit2.GitRepo(Pkg.dir("ExoplanetsSysSim")))),("ExoplanetsSysSim head_oid",LibGit2.head_oid(LibGit2.GitRepo(Pkg.dir("ExoplanetsSysSim"))))]) ) 
+SimParam() = SimParam( Dict{String,Any}([version_id_pair,julia_version_pair,("hostname",gethostname()), ("time",time()),("ExoplanetsSysSim directory",Pkg.dir("ExoplanetsSysSim")),("ExoplanetsSysSim branch",LibGit2.headname(LibGit2.GitRepo(Pkg.dir("ExoplanetsSysSim")))),("ExoplanetsSysSim head_oid",LibGit2.head_oid(LibGit2.GitRepo(Pkg.dir("ExoplanetsSysSim"))))]) ) 
 
 @doc """
 ### add_param_fixed(sim::SimParam, key::String,val::Any)
@@ -125,6 +135,7 @@ end
 
 function noop() 
 end
+
 
 function get_function(sim::SimParam, key::String)
   val::Function = Base.get(sim.param,key,noop)::Function
@@ -239,6 +250,7 @@ function setup_sim_param_demo(args::Vector{String} = Array{String}(0) )   # allo
   add_param_fixed(sim_param,"generate_num_planets",generate_num_planets_poisson)
   add_param_active(sim_param,"log_eta_pl",log(2.0))
   add_param_fixed(sim_param,"generate_planet_mass_from_radius",generate_planet_mass_from_radius_powerlaw)
+  add_param_fixed(sim_param,"vetting_efficiency",vetting_efficiency_none)  
   add_param_fixed(sim_param,"mr_power_index",2.0)
   add_param_fixed(sim_param,"mr_const",1.0)
   #add_param_fixed(sim_param,"generate_period_and_sizes",generate_period_and_sizes_log_normal)
@@ -282,6 +294,8 @@ function test_sim_param_constructors()
   update_sim_param_from_vector!(sp_vec,sim_param)
   newval = get_real(sim_param,"log_eta_pl")
   isapprox(oldval,newval,atol=0.001)
+end
+
 end
 
 #test_sim_param_constructors()
