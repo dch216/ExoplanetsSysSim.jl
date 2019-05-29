@@ -1,5 +1,0 @@
-To run the command line examples:
-> cd apps
-> julia syssim_summary_stats.jl demo_param.in demo_ss.out
-> julia syssim_dist.jl demo_param.in demo_ss.out
-
