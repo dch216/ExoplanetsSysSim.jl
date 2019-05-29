@@ -9,7 +9,7 @@ Welcome to the ExoplanetsSysSim package for generating planetary systems and sim
 * Run julia and install the ExoplanetsSysSim repo as a Julia package using the following command.
 ```
 #!julia
-   Pkg.clone("git@github.com:eford/ExoplanetsSysSim.jl.git")
+   Pkg.clone("https://github.com/dch216/ExoplanetsSysSim.jl.git")
 ```
 * If you are using windows, you might encoutner an issue with capitalization of package names.
 * If you have some issues with Blosc, you might need to follow the instructions here: https://github.com/stevengj/Blosc.jl/issues/5
