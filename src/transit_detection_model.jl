@@ -102,7 +102,7 @@ function detection_efficiency_dr25_simple(mes::Float64, expected_num_transits::F
    return pdet
 end
 
-function get_param_for_detection_and_vetting_efficiency_depending_on_num_transits(num_tr::Integer)
+function get_param_for_fgk_detection_and_vetting_efficiency_depending_on_num_transits(num_tr::Integer)
     if num_tr <= 3
         return (33.3884, 0.264472, 0.699093)
     elseif num_tr <= 4
@@ -122,12 +122,32 @@ function get_param_for_detection_and_vetting_efficiency_depending_on_num_transit
     end
 end
 
+function get_param_for_m_detection_and_vetting_efficiency_depending_on_num_transits(num_tr::Integer)
+    if num_tr <= 3
+        return (33.3884, 0.264472, 0.699093)
+    elseif num_tr <= 4
+        return  (32.886, 0.269577, 0.768366)
+    elseif num_tr <= 5
+        return (31.5196, 0.282741, 0.833673)
+    elseif num_tr <= 6
+        return (30.9919, 0.286979, 0.859865)
+    elseif num_tr <= 9
+        return (30.1906, 0.294688, 0.875042)
+    elseif num_tr <= 18
+        return (30.39071943, 0.2933492,  0.89018648)
+    elseif num_tr <= 36
+        return (29.59808918, 0.29182242, 0.90915166)
+    else
+        return (31.25980585, 0.30160317, 0.86708737)
+    end
+end
+
 # WARNING: Combined detection and vetting efficiency model - do NOT include additional vetting efficiency
 function detection_and_vetting_efficiency_model_v1(mes::Float64, expected_num_transits::Float64; min_pdet_nonzero::Float64 = 0.0)::Float64
     mes *= 1.003
     num_transit_int = convert(Int64,floor(expected_num_transits))
     num_transit_int += rand() < expected_num_transits-num_transit_int ? 1 : 0
-    a, b, c = get_param_for_detection_and_vetting_efficiency_depending_on_num_transits(num_transit_int)
+    a, b, c = get_param_for_fgk_detection_and_vetting_efficiency_depending_on_num_transits(num_transit_int)
     dist = Gamma(a,b)
     pdet::Float64 = c*cdf(dist, mes)::Float64
     pdet = pdet >= min_pdet_nonzero ? pdet : 0.0

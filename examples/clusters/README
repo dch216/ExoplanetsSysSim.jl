@@ -1,6 +1,0 @@
-# This is still in development.
-# Check with Matthias He
-
-How to use:
-- To run one system, update params_common.jl and then run generate_systems.jl
-- To run optimizer, run optimize.jl.
