@@ -47,8 +47,8 @@ function generate_kepler_target_from_table(sim_param::SimParam)
   const max_star_radius = 2.0
   const max_star_mass = 2.0
   const max_star_density = 1000.0
-  const min_frac_rad_sigma = 0.06    # Gaia DR2 - FGK stars
-  #const min_frac_rad_sigma = 0.03     # Mann (2015) - M stars
+  #const min_frac_rad_sigma = 0.06    # Gaia DR2 - FGK stars
+  const min_frac_rad_sigma = 0.03     # Mann (2015) - M stars
   const min_frac_mass_sigma = 0.02
     
   max_star_id = StellarTable.num_usable_in_star_table()
