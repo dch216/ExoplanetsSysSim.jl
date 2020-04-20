@@ -211,3 +211,19 @@ end
 function make_proposal_dist_multidim_beta_dirichlet(pop::abc_population_type, tau_factor::Float64; verbose::Bool = false)
     make_proposal_dist_multidim_beta_dirichlet(pop.theta, pop.weights, tau_factor, verbose=verbose)
 end
+
+function make_proposal_dist_multidim_beta_ratio(theta::AbstractArray{Float64,2}, weights::AbstractArray{Float64,1},  tau_factor::Float64; verbose::Bool = false)
+    global sim_param_closure
+    
+    theta_mean =  sum(theta.*weights',2) # weighted mean for parameters
+    theta_var = ABC.var_weighted(theta'.-theta_mean',weights)  # scaled, weighted covar for parameters
+    prior_max = 15.0
+
+    dist_arr = ContinuousDistribution[make_beta_transformed(theta[1,:], weights, xmin=0.0, xmax=prior_max, xmean=theta_mean[1]/prior_max, xvar=theta_var[1]/prior_max^2, tau_factor=tau_factor)]
+
+dist = CompositeDist(dist_arr)
+end
+
+function make_proposal_dist_multidim_beta_ratio(pop::abc_population_type, tau_factor::Float64; verbose::Bool = false)
+    make_proposal_dist_multidim_beta_ratio(pop.theta, pop.weights, tau_factor, verbose=verbose)
+end

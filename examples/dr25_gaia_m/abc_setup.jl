@@ -7,7 +7,7 @@ export setup, get_param_vector, get_ss_obs
 export gen_data, calc_summary_stats, calc_distance, is_valid_uniform, is_valid_beta, is_valid_dirichlet, normalize_dirch
 using ExoplanetsSysSim
 using ABC
-include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","dr25_gaia_fgk", "christiansen_func.jl"))
+include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","dr25_gaia_m", "christiansen_func.jl"))
 
 sim_param_closure = SimParam()
 summary_stat_ref_closure =  CatalogSummaryStatistics()
@@ -147,8 +147,8 @@ using CompositeDistributions
 using Compat
 import ExoplanetsSysSim
 import EvalSysSimModel
-include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","dr25_gaia_fgk", "christiansen_func.jl"))
-include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","dr25_gaia_fgk", "beta_proposal.jl"))
+include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","dr25_gaia_m", "christiansen_func.jl"))
+include(joinpath(Pkg.dir(),"ExoplanetsSysSim","examples","dr25_gaia_m", "beta_proposal.jl"))
 
 function setup_abc(num_dist::Integer = 0; prior_choice::String = "uniform", bin_size_factor::Float64 = 1.5)
     EvalSysSimModel.setup(prior_choice, bin_size_factor)

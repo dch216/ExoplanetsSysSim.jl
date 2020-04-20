@@ -1,6 +1,6 @@
-## ExoplanetsSysSim/examples/dr25_gaia_fgk/abc_run.jl
+## ExoplanetsSysSim/examples/dr25_gaia_m/abc_run.jl
 ## (c) 2019 Danley C. Hsu & Eric B. Ford
-# Script for producing DR25 FGK planet candidate occurrence rate estimates
+# Script for producing DR25 M planet candidate occurrence rate estimates
 
 include("abc_setup.jl")
 
@@ -10,9 +10,10 @@ using JLD
 using StatsBase
 
 out2txt = false # Write occurrence rates & densities to text files
-expandpart = true # Expand final generation for robust posteriors
-prior_choice = "uniform"
+expandpart = false # Expand final generation for robust posteriors
+prior_choice = "dirichlet"
 bin_size_factor = 2.0
+pop_num = 1
 
 println("Setting up simulation...")
 @time abc_plan = setup_abc(prior_choice = prior_choice, bin_size_factor = bin_size_factor)
@@ -27,14 +28,14 @@ println("Running simulation...")
 #@time output = run_abc(abc_plan, output)
 println("")
 
-save(string("test-pop-out.jld"), "output", output, "ss_true", EvalSysSimModel.get_ss_obs())
+save(string("test-pop-out",pop_num,".jld"), "output", output, "ss_true", EvalSysSimModel.get_ss_obs())
 
 if expandpart
     println("Expanding to large generation...")
-    @time theta_largegen, weights_largegen = run_abc_largegen(abc_plan, output, EvalSysSimModel.get_ss_obs(), output.accept_log.epsilon[end-1], npart=200)
+    @time theta_largegen, weights_largegen = run_abc_largegen(abc_plan, output, EvalSysSimModel.get_ss_obs(), output.accept_log.epsilon[end-1], npart=1000)
     println("")
 
-    save(string("test-pop-out.jld"), "output", output, "ss_true", EvalSysSimModel.get_ss_obs(), "theta_largegen", theta_largegen, "weights_largegen", weights_largegen)
+    save(string("test-pop-out",pop_num,".jld"), "output", output, "ss_true", EvalSysSimModel.get_ss_obs(), "theta_largegen", theta_largegen, "weights_largegen", weights_largegen)
 end
 
 if out2txt

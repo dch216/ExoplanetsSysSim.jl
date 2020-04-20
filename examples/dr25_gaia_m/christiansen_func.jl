@@ -180,6 +180,64 @@ function set_test_param_total(sim_param_closure::SimParam)
     return sim_param_closure
 end
 
+function set_test_param_ratio(sim_param_closure::SimParam)
+    @eval(include(joinpath(pwd(),"param.in")))
+
+    if @isdefinedlocal(stellar_catalog)
+        @assert (typeof(stellar_catalog) == String)
+        add_param_fixed(sim_param_closure,"stellar_catalog",stellar_catalog)
+    end
+    if @isdefinedlocal(koi_catalog)
+        @assert (typeof(koi_catalog) == String)
+        add_param_fixed(sim_param_closure,"koi_catalog",koi_catalog)
+    end
+    
+    if @isdefinedlocal(num_targ_sim)
+        @assert (typeof(num_targ_sim) == Int)
+        add_param_fixed(sim_param_closure,"num_targets_sim_pass_one",num_targ_sim)
+    end
+
+    if @isdefinedlocal(osd_file)
+        @assert (typeof(osd_file) == String)
+        add_param_fixed(sim_param_closure,"osd_file",osd_file)
+    end
+    
+    @assert (typeof(p_bin_lim) == Array{Float64,1})
+    add_param_fixed(sim_param_closure, "p_lim_arr", p_bin_lim)
+
+    @assert (typeof(r_bin_lim) == Array{Float64,1})
+    add_param_fixed(sim_param_closure, "r_lim_arr", r_bin_lim*ExoplanetsSysSim.earth_radius)
+
+    p_dim = length(get_any(sim_param_closure, "p_lim_full", Array{Float64,1}))-1
+    r_dim = length(get_any(sim_param_closure, "r_lim_full", Array{Float64,1}))-1
+    n_bin = p_dim*r_dim
+
+    if @isdefinedlocal(rate_init)
+        if typeof(rate_init) <: Real
+            @assert (rate_init >= 0.0)
+            rate_init_list = fill(rate_init, n_bin)
+        else
+            rate_init_list = rate_init
+        end
+        
+        @assert (ndims(rate_init_list) <= 2)
+        if ndims(rate_init_list) == 1
+            @assert (length(rate_init_list) == n_bin)
+            rate_tab_init = reshape(rate_init_list*0.01, (r_dim, p_dim))
+        else
+            @assert (size(rate_init_list) == (r_dim, p_dim))
+            rate_tab_init = rate_init_list*0.01
+        end
+        add_param_fixed(sim_param_closure, "obs_par", rate_tab_init)
+    else
+        rate_init_list = fill(1.0, n_bin)
+        rate_tab_init = reshape(rate_init_list*0.01, (r_dim, p_dim))
+        add_param_fixed(sim_param_closure, "obs_par", rate_tab_init)
+    end
+    
+    return sim_param_closure
+end
+
 
 ## planetary_system
 function draw_uniform_selfavoiding(n::Integer; lower_bound::Real=0.0, upper_bound=1.0, min_separation::Real = 0.05, return_sorted::Bool=false )
@@ -375,7 +433,7 @@ end
 
 function generate_period_and_sizes_m_fgk_ratio(s::Star, sim_param::SimParam; num_pl::Integer = 1)
   rate_tab::Array{Float64,2} = get_any(sim_param, "obs_par", Array{Float64,2})
-  mfgk_ratio::Float64 = get_real(sim_param, "mfgk_ratio")
+  #mfgk_ratio::Float64 = get_real(sim_param, "mfgk_ratio")
   
   limitP::Array{Float64,1} = get_any(sim_param, "p_lim_full", Array{Float64,1})
   limitRp::Array{Float64,1} = get_any(sim_param, "r_lim_full", Array{Float64,1})
@@ -388,7 +446,7 @@ function generate_period_and_sizes_m_fgk_ratio(s::Star, sim_param::SimParam; num
 
   Plist = zeros(num_pl)
   Rplist = zeros(num_pl)
-  rate_tab_1d = mfgk_ratio*reshape(rate_tab,length(rate_tab))
+  rate_tab_1d = reshape(rate_tab,length(rate_tab))
   maxcuml = sum(rate_tab_1d)
   cuml = cumsum_kbn(rate_tab_1d/maxcuml)
 
