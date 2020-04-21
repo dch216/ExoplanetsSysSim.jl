@@ -81,7 +81,7 @@ is_usable = .&(has_rest, has_cdpp, mast_cut, astrometry_good, has_tmass)#, not_b
 df = df[find(is_usable),:]
 println("Total stars (KOIs) with valid parameters = ", length(df[:kepid]), " (", sum(df[:nkoi]),")")
 
-m_absg = df[:phot_g_mean_mag] - df[:a_g_val] + 5 + 5*log10.(df[:parallax]/1000.)
+m_absg = df[:phot_g_mean_mag] + 5 + 5*log10.(df[:parallax]/1000.)
 m_absk = df[:ks_m] + 5 + 5*log10.(df[:parallax]/1000.)
 
 m_absk_err = sqrt.(df[:ks_msigcom].^2 .+ ((5./(df[:parallax]*log(10))).^2 .* df[:parallax_error].^2))
@@ -100,38 +100,72 @@ m_mass_err = abs.((0.3872 - (2*0.1217*m_absk) .+ (3*0.0106*m_absk.^2) .- (4*2.72
 df[:mass_err1] = m_mass_err
 df[:mass_err2] = -m_mass_err
 
+# for i in 1:length(df[:kepid])
+#     println(i, " ", m_absk[i], " ", df[i,:radius], " ", df[i,:mass])
+# end
+
 m_teff = df[:teff] .<= 4000
 m_logg = df[:logg] .> 3
 #m_teff = (2320 .<= df[:teff] .<= 3870)
 m_gmag = (7.55 .<= m_absg)# .<= 16.33)
 m_kmag = (4.8 .<= m_absk)
 
-#FGK = find(.&(m_gcolor,m_gmag,m_tcolor,m_kmag))#, df[:radius].<2))
-M_samp = find(.&(m_tcolor,m_kmag, df[:radius] .< 2, df[:mass] .> 0.5))
-#FGK = find(m_color)
-#FGK = find(.&(m_teff, m_logg, df[:radius].<2))
-
+M_samp = find(m_tcolor)
+println("Total cool stars (KOIs) with valid parameters = ", length(M_samp), " (", sum(df[M_samp, :nkoi]),")")
+M_samp = find(.&(m_tcolor,m_kmag))
 println("Total M stars (KOIs) with valid parameters = ", length(M_samp), " (", sum(df[M_samp, :nkoi]),")")
+# M_samp = find(.&(m_tcolor,m_kmag, df[:radius] .< 2))#, df[:mass] .> 0.5))
+# println("Total MS M stars (KOIs) with valid parameters = ", length(M_samp), " (", sum(df[M_samp, :nkoi]),")")
+#println("Maximum distance (pc) = ", maximum(1.0./(df[M_samp, :parallax]/1000.0)))
+#println("Minimum Ks uncertainty = ", minimum(df[M_samp, :ks_msigcom]))
 
 plot_samp = rand(1:length(df[:kepid]), 5000)
 plt[:scatter](df[M_samp, :bp_rp], m_absg[M_samp], s=3, label = "M", color="red")
 plt[:scatter](df[plot_samp, :bp_rp], m_absg[plot_samp], s=3, label = "All", color="black")
+# plt[:scatter](df[M_samp, :j_m] .- df[M_samp, :ks_m], m_absk[M_samp], s=3, label = "M", color="red")
+# plt[:scatter](df[plot_samp, :j_m] .- df[plot_samp, :ks_m], m_absk[plot_samp], s=3, label = "All", color="black")
+# plt[:scatter](df[M_samp, :radius], df[M_samp, :radius_val], s=3, label = "M", color="black")
 
-plt[:ylabel](L"$M_G$")
+plt[:ylabel](L"$M_{G}$")
 plt[:xlabel](L"$B_p - R_p$")
-plt[:ylim](reverse(plt[:ylim]()))
+# plt[:ylabel](L"$M_{K}$")
+# plt[:xlabel](L"$J - K$")
+# plt[:xlabel]("Kepler R_*")
+# plt[:ylabel]("Mann R_*")
+# plt[:xlim]((0.3, 0.8))
+# plt[:ylim]((0.3, 0.8))
+#plt[:xlim]((0, 1))
+plt[:ylim](reverse(plt[:ylim]()))#bottom=-4)))
 plt[:legend]()
-plt[:savefig]("m-dwarf_samp.png")
+# plt[:savefig]("m-dwarf_samp_radiicomp.png")
+plt[:savefig]("m-dwarf_samp_gaiamag.png")
+plt[:savefig]("m-dwarf_samp_gaiamag.eps")
+# plt[:savefig]("m-dwarf_samp_2massmag.png")
+# plt[:savefig]("m-dwarf_samp_2massmag.eps")
 
-# See options at: http://exoplanetarchive.ipac.caltech.edu/docs/API_keplerstellar_columns.html
-# TODO SCI DETAIL or IMPORTANT?: Read in all CDPP's, so can interpolate?
-symbols_to_keep = [ :kepid, :source_id, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :teff, :phot_g_mean_mag, :bp_rp, :j_m, :ks_m, :lum_val, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :dataspan, :dutycycle, :limbdark_coeff1, :limbdark_coeff2, :limbdark_coeff3, :limbdark_coeff4, :contam]
-# delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
-df = df[M_samp, symbols_to_keep]
-tmp_df = DataFrame()    
-for col in names(df)
-    tmp_df[col] = collect(skipmissing(df[col]))
+num_less = 0
+num_mid = 0
+tmp_df = df[M_samp,:]
+for i in 1:length(tmp_df[:kepid])
+    maxmes = max(tmp_df[i,:mesthres01p5],tmp_df[i,:mesthres02p0],tmp_df[i,:mesthres02p5],tmp_df[i,:mesthres03p0],tmp_df[i,:mesthres03p5],tmp_df[i,:mesthres04p5],tmp_df[i,:mesthres05p0],tmp_df[i,:mesthres06p0],tmp_df[i,:mesthres07p5],tmp_df[i,:mesthres09p0],tmp_df[i,:mesthres10p5],tmp_df[i,:mesthres12p0],tmp_df[i,:mesthres12p5],tmp_df[i,:mesthres15p0])
+    if maxmes > 8
+        num_less += 1
+    elseif maxmes > 7.1
+        num_mid += 1
+    end
 end
-df = tmp_df
+println("Total # of M targets with MES threshold > 8 = ", num_less)
+println("Total # of M targets with MES threshold between 7.1 and 8 = ", num_mid)
 
-save(stellar_catalog_file_out,"stellar_catalog", df)
+# # See options at: http://exoplanetarchive.ipac.caltech.edu/docs/API_keplerstellar_columns.html
+# # TODO SCI DETAIL or IMPORTANT?: Read in all CDPP's, so can interpolate?
+# symbols_to_keep = [ :kepid, :source_id, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :teff, :phot_g_mean_mag, :bp_rp, :j_m, :ks_m, :lum_val, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :dataspan, :dutycycle, :limbdark_coeff1, :limbdark_coeff2, :limbdark_coeff3, :limbdark_coeff4, :contam]
+# # delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
+# df = df[M_samp, symbols_to_keep]
+# tmp_df = DataFrame()    
+# for col in names(df)
+#     tmp_df[col] = collect(skipmissing(df[col]))
+# end
+# df = tmp_df
+
+# save(stellar_catalog_file_out,"stellar_catalog", df)

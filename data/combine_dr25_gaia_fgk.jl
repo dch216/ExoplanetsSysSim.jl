@@ -47,7 +47,7 @@ delete!(df, :radius_val)
 delete!(df, :radius_percentile_upper)
 delete!(df, :radius_percentile_lower)
 
-not_binary_suspect = (df[:astrometric_gof_al] .<= 20) .& (df[:astrometric_excess_noise_sig] .<= 5)
+not_binary = (df[:astrometric_gof_al] .<= 20) .& (df[:astrometric_excess_noise_sig] .<= 5)
 astrometry_good = []
 for x in 1:length(df[:kepid])
     if !(ismissing(df[x,:priam_flags]))
@@ -61,16 +61,15 @@ for x in 1:length(df[:kepid])
          push!(astrometry_good, false)
      end
 end
-astrometry_good = astrometry_good .& (df[:parallax_error] .< 0.3*df[:parallax])
+astro_good = astrometry_good .& (df[:parallax_error] .< 0.1*df[:parallax])
 planet_search = df[:kepmag] .<= 16.
 
 has_mass = .! (ismissing.(df[:mass]) .| ismissing.(df[:mass_err1]) .| ismissing.(df[:mass_err2]))
 has_radius = .! (ismissing.(df[:radius]) .| ismissing.(df[:radius_err1]) .| ismissing.(df[:radius_err2]))# .| isnan.(df[:radius]) .| isnan.(df[:radius_err1]) .| isnan.(df[:radius_err2]))
-#has_dens = .! (ismissing.(df[:dens]) .| ismissing.(df[:dens_err1]) .| ismissing.(df[:dens_err2]))
+has_dens = .! (ismissing.(df[:dens]) .| ismissing.(df[:dens_err1]) .| ismissing.(df[:dens_err2]))
 has_cdpp = .! (ismissing.(df[:rrmscdpp01p5]) .| ismissing.(df[:rrmscdpp02p0]) .| ismissing.(df[:rrmscdpp02p5]) .| ismissing.(df[:rrmscdpp03p0]) .| ismissing.(df[:rrmscdpp03p5]) .| ismissing.(df[:rrmscdpp04p5]) .| ismissing.(df[:rrmscdpp05p0]) .| ismissing.(df[:rrmscdpp06p0]) .| ismissing.(df[:rrmscdpp07p5]) .| ismissing.(df[:rrmscdpp09p0]) .| ismissing.(df[:rrmscdpp10p5]) .| ismissing.(df[:rrmscdpp12p0]) .| ismissing.(df[:rrmscdpp12p5]) .| ismissing.(df[:rrmscdpp15p0]))
 has_rest = .! (ismissing.(df[:dataspan]) .| ismissing.(df[:dutycycle]))
 has_limbd = .! (ismissing.(df[:limbdark_coeff1]) .| ismissing.(df[:limbdark_coeff2]) .| ismissing.(df[:limbdark_coeff3]) .| ismissing.(df[:limbdark_coeff4]))
-has_tmass = .! (ismissing.(df[:ks_msigcom]) .| ismissing.(df[:ks_m]) .| ismissing.(df[:j_m]))
 
 mast_cut =.&(df[:numLCEXqtrs].>0,df[:numLCqtrs].>4)
 
@@ -80,8 +79,9 @@ df = df[find(is_usable),:]
 println("Total stars (KOIs) with valid parameters = ", length(df[:kepid]), " (", sum(df[:nkoi]),")")
 
 fgk_color = (0.5 .<= df[:bp_rp] .<= 1.7)
-
 df = df[find(fgk_color),:]
+println("Total FGK colored stars (KOIs) with valid parameters = ", length(find(fgk_color)), " (", sum(df[:, :nkoi]),")")
+
 near_FGK_MS = []
 coeff = [2.5,-3.6,0.9]
 for i in 1:6
@@ -104,7 +104,7 @@ plt[:savefig]("fgk-dwarf_samp.png")
 
 # See options at: http://exoplanetarchive.ipac.caltech.edu/docs/API_keplerstellar_columns.html
 # TODO SCI DETAIL or IMPORTANT?: Read in all CDPP's, so can interpolate?
-symbols_to_keep = [ :kepid, :source_id, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :teff, :phot_g_mean_mag, :bp_rp, :j_m, :ks_m, :lum_val, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :dataspan, :dutycycle, :limbdark_coeff1, :limbdark_coeff2, :limbdark_coeff3, :limbdark_coeff4, :contam]
+symbols_to_keep = [ :kepid, :source_id, :mass, :mass_err1, :mass_err2, :radius, :radius_err1, :radius_err2, :dens, :dens_err1, :dens_err2, :teff, :phot_g_mean_mag, :bp_rp, :lum_val, :rrmscdpp01p5, :rrmscdpp02p0, :rrmscdpp02p5, :rrmscdpp03p0, :rrmscdpp03p5, :rrmscdpp04p5, :rrmscdpp05p0, :rrmscdpp06p0, :rrmscdpp07p5, :rrmscdpp09p0, :rrmscdpp10p5, :rrmscdpp12p0, :rrmscdpp12p5, :rrmscdpp15p0, :dataspan, :dutycycle, :limbdark_coeff1, :limbdark_coeff2, :limbdark_coeff3, :limbdark_coeff4, :contam]
 # delete!(df, [~(x in symbols_to_keep) for x in names(df)])    # delete columns that we won't be using anyway
 df = df[FGK, symbols_to_keep]
 tmp_df = DataFrame()    
